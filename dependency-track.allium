@@ -1,0 +1,1252 @@
+-- allium: 3
+-- Dependency-Track v4.14.0 — software supply chain security platform.
+-- Domain-level spec: tracks projects, their components, vulnerabilities
+-- found against those components, policy violations, audit decisions
+-- and notification dispatch.
+
+------------------------------------------------------------
+-- External Entities
+------------------------------------------------------------
+
+-- Authoritative sources of vulnerability intelligence the platform
+-- mirrors or queries. These systems are owned outside the spec.
+
+external entity NvdSource {
+    name: String
+}
+
+external entity GitHubAdvisorySource {
+    name: String
+}
+
+external entity OsvSource {
+    name: String
+}
+
+external entity OssIndexSource {
+    name: String
+}
+
+external entity SnykSource {
+    name: String
+}
+
+external entity TrivySource {
+    name: String
+}
+
+external entity VulnDbSource {
+    name: String
+}
+
+external entity EpssSource {
+    name: String
+}
+
+-- Public package registries used to retrieve latest version metadata.
+external entity PackageRegistry {
+    name: String
+    ecosystem: String
+}
+
+-- External issue tracking and security platforms that receive findings.
+external entity DefectDojoInstance {
+    base_url: String
+}
+
+external entity FortifySscInstance {
+    base_url: String
+}
+
+external entity KennaSecurityInstance {
+    base_url: String
+}
+
+-- External identity providers federated into the platform.
+external entity OidcProvider {
+    issuer: String
+}
+
+external entity LdapDirectory {
+    name: String
+}
+
+------------------------------------------------------------
+-- Value Types
+------------------------------------------------------------
+
+value PackageCoordinates {
+    purl: String?
+    cpe: String?
+    swid_tag_id: String?
+}
+
+value ComponentHashes {
+    md5: String?
+    sha1: String?
+    sha256: String?
+    sha512: String?
+}
+
+value CvssScores {
+    v2_base: Decimal?
+    v3_base: Decimal?
+    v4_base: Decimal?
+}
+
+value EpssScore {
+    score: Decimal
+    percentile: Decimal
+}
+
+------------------------------------------------------------
+-- Enumerations
+------------------------------------------------------------
+
+enum VulnerabilitySource {
+    nvd | github | vulndb | ossindex | internal | osv | snyk | trivy
+}
+
+enum Severity {
+    critical | high | medium | low | info | unassigned
+}
+
+enum AnalysisState {
+    not_set | in_triage | exploitable | false_positive | not_affected | resolved
+}
+
+enum ViolationAnalysisState {
+    not_set | approved | rejected | rejected_invalid
+}
+
+enum PolicyOperator { all_conditions | any_condition }
+
+enum PolicyViolationLevel { info | warn | fail }
+
+enum PolicyViolationType { license | security | operational }
+
+enum ComponentClassifier {
+    application | framework | library | container | operating_system |
+    device | firmware | file | service | data | machine_learning_model |
+    cryptographic_asset
+}
+
+enum ProjectClassifier {
+    application | framework | library | container | operating_system |
+    device | firmware | file
+}
+
+enum CollectionLogic {
+    none | aggregate_direct_children | aggregate_direct_children_with_tag
+}
+
+enum BomFormat { cyclone_dx | spdx }
+
+enum BomProcessingStatus {
+    received | parsing | reconciling | scanning | completed | failed
+}
+
+enum NotificationScope { portfolio | system }
+
+enum NotificationLevel { informational | warning | error }
+
+enum NotificationGroup {
+    new_vulnerability |
+    new_vulnerable_dependency |
+    project_audit_change |
+    bom_consumed |
+    bom_processed |
+    bom_processing_failed |
+    vex_consumed |
+    vex_processed |
+    policy_violation |
+    analyzer_failure |
+    repository_error |
+    user_created |
+    user_deleted
+}
+
+enum PublisherChannel {
+    slack | email | ms_teams | mattermost | webex | jira | webhook | console
+}
+
+enum MirrorTaskState { idle | running | succeeded | failed }
+
+enum FindingExporterTarget { defect_dojo | fortify_ssc | kenna_security }
+
+enum ExportStatus { pending | in_flight | succeeded | failed }
+
+enum TeamRole { admin | portfolio_manager | auditor | member }
+
+------------------------------------------------------------
+-- Entities and Variants
+------------------------------------------------------------
+
+entity Team {
+    name: String
+    role: TeamRole
+    members: TeamMembership with team = this
+    api_keys: ApiKey with team = this
+}
+
+entity User {
+    username: String
+    email: String?
+    is_active: Boolean
+    federated_via_oidc: OidcProvider?
+    federated_via_ldap: LdapDirectory?
+    memberships: TeamMembership with user = this
+}
+
+entity TeamMembership {
+    user: User
+    team: Team
+}
+
+entity ApiKey {
+    team: Team
+    is_active: Boolean
+    created_at: Timestamp
+    last_used_at: Timestamp?
+}
+
+entity Project {
+    name: String
+    version: String?
+    group: String?
+    description: String?
+    classifier: ProjectClassifier
+    coordinates: PackageCoordinates
+    tags: Set<String>
+    is_latest: Boolean
+    is_active: Boolean
+    parent: Project?
+    children: Project with parent = this
+    access_teams: Set<Team>
+    collection_logic: CollectionLogic
+    collection_tag: String?
+    last_inherited_risk_score: Decimal
+    components: Component with project = this
+    service_components: ServiceComponent with project = this
+    findings: Finding with project = this
+    boms: Bom with project = this
+    policy_violations: PolicyViolation with project = this
+    metrics_snapshots: ProjectMetrics with project = this
+
+    invariant CollectionTagOnlyWhenTagged {
+        collection_logic = aggregate_direct_children_with_tag implies collection_tag != null
+    }
+}
+
+entity Component {
+    project: Project
+    name: String
+    version: String?
+    group: String?
+    classifier: ComponentClassifier
+    coordinates: PackageCoordinates
+    license_id: String?
+    hashes: ComponentHashes
+    is_internal: Boolean
+    parent: Component?
+    children: Component with parent = this
+    findings: Finding with component = this
+    cache_entries: ComponentAnalysisCache with component = this
+    metrics_snapshots: DependencyMetrics with component = this
+}
+
+entity ServiceComponent {
+    project: Project
+    name: String
+    version: String?
+    group: String?
+    endpoint_uris: Set<String>
+    is_authenticated: Boolean
+    crosses_trust_boundary: Boolean
+    data_classification: String?
+}
+
+entity Vulnerability {
+    vuln_id: String
+    source: VulnerabilitySource
+    severity: Severity
+    description: String?
+    cvss: CvssScores
+    epss: EpssScore?
+    cwes: Set<String>
+    aliases: Set<String>
+    published_at: Timestamp?
+    findings: Finding with vulnerability = this
+}
+
+entity Finding {
+    project: Project
+    component: Component
+    vulnerability: Vulnerability
+    discovered_at: Timestamp
+    attributed_to: VulnerabilitySource
+    analysis: Analysis with finding = this
+
+    invariant FindingComponentBelongsToProject {
+        component.project = project
+    }
+}
+
+entity Analysis {
+    finding: Finding
+    state: AnalysisState
+    justification: String?
+    response: String?
+    details: String?
+    is_suppressed: Boolean
+    last_updated_at: Timestamp
+    comments: AnalysisComment with analysis = this
+}
+
+entity AnalysisComment {
+    analysis: Analysis
+    author: User
+    body: String
+    written_at: Timestamp
+}
+
+entity Policy {
+    name: String
+    operator: PolicyOperator
+    violation_level: PolicyViolationLevel
+    is_global: Boolean
+    scoped_projects: Set<Project>
+    scoped_tags: Set<String>
+    conditions: PolicyCondition with policy = this
+    violations: PolicyViolation with policy = this
+}
+
+entity PolicyCondition {
+    policy: Policy
+    subject: String
+    operator: String
+    value: String
+}
+
+entity PolicyViolation {
+    policy: Policy
+    project: Project
+    component: Component
+    violation_type: PolicyViolationType
+    detected_at: Timestamp
+    analysis: ViolationAnalysis with violation = this
+}
+
+entity ViolationAnalysis {
+    violation: PolicyViolation
+    state: ViolationAnalysisState
+    is_suppressed: Boolean
+    last_updated_at: Timestamp
+    comments: ViolationAnalysisComment with analysis = this
+}
+
+entity ViolationAnalysisComment {
+    analysis: ViolationAnalysis
+    author: User
+    body: String
+    written_at: Timestamp
+}
+
+entity License {
+    license_id: String
+    name: String
+    is_osi_approved: Boolean
+    is_fsf_libre: Boolean
+    is_deprecated: Boolean
+    groups: LicenseGroupMembership with license = this
+}
+
+entity LicenseGroup {
+    name: String
+    memberships: LicenseGroupMembership with group = this
+}
+
+entity LicenseGroupMembership {
+    group: LicenseGroup
+    license: License
+}
+
+entity Bom {
+    project: Project
+    format: BomFormat
+    spec_version: String
+    serial_number: String?
+    received_at: Timestamp
+    status: BomProcessingStatus
+    processed_at: Timestamp? when status = completed | failed
+    failure_reason: String? when status = failed
+    component_count: Integer when status = completed
+    service_count: Integer when status = completed
+
+    transitions status {
+        received -> parsing
+        parsing -> reconciling
+        reconciling -> scanning
+        scanning -> completed
+        parsing -> failed
+        reconciling -> failed
+        scanning -> failed
+        terminal: completed, failed
+    }
+}
+
+entity Vex {
+    project: Project
+    received_at: Timestamp
+    applied_at: Timestamp?
+    is_applied: Boolean
+}
+
+entity ComponentAnalysisCache {
+    component: Component
+    source: VulnerabilitySource
+    cached_at: Timestamp
+    expires_at: Timestamp
+    status: fresh | stale
+
+    transitions status {
+        fresh -> stale
+        stale -> fresh
+    }
+}
+
+entity PortfolioMetrics {
+    captured_at: Timestamp
+    critical_count: Integer
+    high_count: Integer
+    medium_count: Integer
+    low_count: Integer
+    unassigned_count: Integer
+    policy_violation_fail_count: Integer
+    policy_violation_warn_count: Integer
+    policy_violation_info_count: Integer
+    inherited_risk_score: Decimal
+}
+
+entity ProjectMetrics {
+    project: Project
+    captured_at: Timestamp
+    critical_count: Integer
+    high_count: Integer
+    medium_count: Integer
+    low_count: Integer
+    unassigned_count: Integer
+    policy_violation_fail_count: Integer
+    policy_violation_warn_count: Integer
+    policy_violation_info_count: Integer
+    inherited_risk_score: Decimal
+    first_occurrence: Timestamp
+    last_occurrence: Timestamp
+}
+
+entity DependencyMetrics {
+    component: Component
+    captured_at: Timestamp
+    critical_count: Integer
+    high_count: Integer
+    medium_count: Integer
+    low_count: Integer
+    unassigned_count: Integer
+    policy_violation_fail_count: Integer
+    policy_violation_warn_count: Integer
+    policy_violation_info_count: Integer
+    first_occurrence: Timestamp
+    last_occurrence: Timestamp
+}
+
+entity NotificationRule {
+    name: String
+    scope: NotificationScope
+    level: NotificationLevel
+    groups: Set<NotificationGroup>
+    project_filter: Set<Project>
+    tag_filter: Set<String>
+    publisher: PublisherChannel
+    is_enabled: Boolean
+    dispatches: NotificationDispatch with notification_rule = this
+}
+
+entity NotificationDispatch {
+    notification_rule: NotificationRule
+    group: NotificationGroup
+    level: NotificationLevel
+    subject_project: Project?
+    queued_at: Timestamp
+    status: pending | delivering | delivered | failed
+    delivered_at: Timestamp? when status = delivered
+    failure_reason: String? when status = failed
+
+    transitions status {
+        pending -> delivering
+        delivering -> delivered
+        delivering -> failed
+        terminal: delivered, failed
+    }
+}
+
+entity FindingExport {
+    target: FindingExporterTarget
+    project: Project
+    requested_at: Timestamp
+    status: ExportStatus
+    completed_at: Timestamp? when status = succeeded
+    failure_reason: String? when status = failed
+
+    transitions status {
+        pending -> in_flight
+        in_flight -> succeeded
+        in_flight -> failed
+        terminal: succeeded, failed
+    }
+}
+
+entity MirrorTask {
+    source: VulnerabilitySource
+    scheduled_at: Timestamp
+    next_run_at: Timestamp
+    state: MirrorTaskState
+    started_at: Timestamp? when state = running | succeeded | failed
+    finished_at: Timestamp? when state = succeeded | failed
+    failure_reason: String? when state = failed
+
+    transitions state {
+        idle -> running
+        running -> succeeded
+        running -> failed
+        succeeded -> idle
+        failed -> idle
+    }
+}
+
+entity EpssRefreshTask {
+    scheduled_at: Timestamp
+    next_run_at: Timestamp
+    state: MirrorTaskState
+    started_at: Timestamp? when state = running | succeeded | failed
+    finished_at: Timestamp? when state = succeeded | failed
+    failure_reason: String? when state = failed
+
+    transitions state {
+        idle -> running
+        running -> succeeded
+        running -> failed
+        succeeded -> idle
+        failed -> idle
+    }
+}
+
+------------------------------------------------------------
+-- Config
+------------------------------------------------------------
+
+config {
+    component_scan_cache_ttl: Duration = 24.hours
+    vulnerability_mirror_interval: Duration = 24.hours
+    epss_refresh_interval: Duration = 24.hours
+    project_metrics_refresh_interval: Duration = 1.hour
+    portfolio_metrics_refresh_interval: Duration = 1.hour
+    repository_metadata_refresh_interval: Duration = 24.hours
+    notification_max_attempts: Integer = 3
+    finding_export_max_attempts: Integer = 3
+    api_key_idle_warning_threshold: Duration = 90.days
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+-- BOM upload flow ---------------------------------------------------
+
+rule ReceiveBom {
+    when: UploadBom(project, format, spec_version, serial_number?)
+    ensures: Bom.created(
+        project: project,
+        format: format,
+        spec_version: spec_version,
+        serial_number: serial_number,
+        received_at: now,
+        status: received
+    )
+}
+
+rule BeginBomParsing {
+    when: bom: Bom.status becomes received
+    requires: bom.status = received
+    ensures: bom.status = parsing
+}
+
+rule ReconcileBomComponents {
+    when: bom: Bom.status transitions_to parsing
+    requires: bom.status = parsing
+    ensures:
+        bom.status = reconciling
+        BomReconciled(bom: bom, project: bom.project)
+}
+
+rule ScheduleVulnerabilityAnalysisAfterReconcile {
+    when: BomReconciled(bom, project)
+    ensures:
+        bom.status = scanning
+        ProjectVulnerabilityAnalysisRequested(project: project, bom: bom)
+        PolicyEvaluationRequested(project: project)
+        RepositoryMetadataRefreshRequested(project: project)
+}
+
+rule CompleteBomProcessing {
+    when: ProjectVulnerabilityAnalysisCompleted(project, bom)
+    requires: bom.status = scanning
+    ensures:
+        bom.status = completed
+        bom.processed_at = now
+        bom.component_count = project.components.count
+        bom.service_count = project.service_components.count
+        BomProcessed(project: project, bom: bom)
+}
+
+rule FailBomProcessing {
+    when: BomProcessingFailed(bom, reason)
+    requires: bom.status in {parsing, reconciling, scanning}
+    ensures:
+        bom.status = failed
+        bom.processed_at = now
+        bom.failure_reason = reason
+        BomProcessingFailureNotified(project: bom.project, bom: bom, reason: reason)
+}
+
+-- VEX upload flow ---------------------------------------------------
+
+rule ReceiveVex {
+    when: UploadVex(project)
+    ensures: Vex.created(
+        project: project,
+        received_at: now,
+        is_applied: false
+    )
+}
+
+rule ApplyVexToFindings {
+    when: vex: Vex.is_applied becomes false
+    requires: not vex.is_applied
+    ensures:
+        vex.is_applied = true
+        vex.applied_at = now
+        VexProcessed(project: vex.project, vex: vex)
+}
+
+-- Vulnerability analysis flow ---------------------------------------
+
+rule ScanComponentForVulnerabilities {
+    when: ScanComponent(component, source)
+    let cache = ComponentAnalysisCache{component: component, source: source}
+    requires: not exists cache or cache.status = stale
+    ensures: VulnerabilityScanRequested(component: component, source: source)
+}
+
+rule RecordVulnerabilityFinding {
+    when: VulnerabilityIdentified(project, component, vulnerability, source)
+    requires: component.project = project
+    ensures:
+        let finding = Finding.created(
+            project: project,
+            component: component,
+            vulnerability: vulnerability,
+            discovered_at: now,
+            attributed_to: source
+        )
+        Analysis.created(
+            finding: finding,
+            state: not_set,
+            is_suppressed: false,
+            last_updated_at: now
+        )
+        NewVulnerableDependencyDetected(project: project, component: component, vulnerability: vulnerability)
+}
+
+rule RefreshScanCacheOnResult {
+    when: VulnerabilityScanCompleted(component, source)
+    let cache = ComponentAnalysisCache{component: component, source: source}
+    ensures:
+        if not exists cache:
+            ComponentAnalysisCache.created(
+                component: component,
+                source: source,
+                cached_at: now,
+                expires_at: now + config.component_scan_cache_ttl,
+                status: fresh
+            )
+        else:
+            cache.cached_at = now
+            cache.expires_at = now + config.component_scan_cache_ttl
+            cache.status = fresh
+}
+
+rule ExpireStaleScanCache {
+    when: cache: ComponentAnalysisCache.expires_at <= now
+    requires: cache.status = fresh
+    ensures: cache.status = stale
+}
+
+-- Analysis / triage flow --------------------------------------------
+
+rule UpdateFindingAnalysis {
+    when: UpdateAnalysis(actor, finding, state, justification?, response?, details?)
+    requires: actor in finding.project.access_teams.members.user
+    ensures:
+        let analysis = finding.analysis
+        analysis.state = state
+        analysis.justification = justification
+        analysis.response = response
+        analysis.details = details
+        analysis.last_updated_at = now
+        ProjectAuditChanged(project: finding.project, finding: finding, new_state: state)
+}
+
+rule SuppressFinding {
+    when: SuppressFinding(actor, finding)
+    requires: actor in finding.project.access_teams.members.user
+    ensures:
+        finding.analysis.is_suppressed = true
+        finding.analysis.last_updated_at = now
+}
+
+rule CommentOnAnalysis {
+    when: CommentOnAnalysis(actor, analysis, body)
+    requires: actor in analysis.finding.project.access_teams.members.user
+    ensures: AnalysisComment.created(
+        analysis: analysis,
+        author: actor,
+        body: body,
+        written_at: now
+    )
+}
+
+-- Policy evaluation flow --------------------------------------------
+
+rule EvaluateProjectPolicies {
+    when: PolicyEvaluationRequested(project)
+    ensures:
+        for policy in Policies where is_global or project in scoped_projects:
+            PolicyEvaluationForPolicy(project: project, policy: policy)
+}
+
+rule RecordPolicyViolation {
+    when: PolicyViolated(project, component, policy, violation_type)
+    requires: component.project = project
+    ensures:
+        let violation = PolicyViolation.created(
+            policy: policy,
+            project: project,
+            component: component,
+            violation_type: violation_type,
+            detected_at: now
+        )
+        ViolationAnalysis.created(
+            violation: violation,
+            state: not_set,
+            is_suppressed: false,
+            last_updated_at: now
+        )
+        PolicyViolationDetected(project: project, component: component, policy: policy)
+}
+
+rule UpdateViolationAnalysis {
+    when: UpdateViolationAnalysis(actor, violation, state)
+    requires: actor in violation.project.access_teams.members.user
+    ensures:
+        let analysis = violation.analysis
+        analysis.state = state
+        analysis.last_updated_at = now
+}
+
+rule SuppressViolation {
+    when: SuppressViolation(actor, violation)
+    requires: actor in violation.project.access_teams.members.user
+    ensures:
+        violation.analysis.is_suppressed = true
+        violation.analysis.last_updated_at = now
+}
+
+-- Metrics flow ------------------------------------------------------
+
+rule RefreshDependencyMetrics {
+    when: ComponentMetricsRefreshRequested(component)
+    ensures: DependencyMetrics.created(
+        component: component,
+        captured_at: now,
+        critical_count: component.findings.count,
+        high_count: 0,
+        medium_count: 0,
+        low_count: 0,
+        unassigned_count: 0,
+        policy_violation_fail_count: 0,
+        policy_violation_warn_count: 0,
+        policy_violation_info_count: 0,
+        first_occurrence: now,
+        last_occurrence: now
+    )
+}
+
+rule RefreshProjectMetrics {
+    when: ProjectMetricsRefreshRequested(project)
+    ensures:
+        ProjectMetrics.created(
+            project: project,
+            captured_at: now,
+            critical_count: project.findings.count,
+            high_count: 0,
+            medium_count: 0,
+            low_count: 0,
+            unassigned_count: 0,
+            policy_violation_fail_count: 0,
+            policy_violation_warn_count: 0,
+            policy_violation_info_count: 0,
+            inherited_risk_score: 0,
+            first_occurrence: now,
+            last_occurrence: now
+        )
+        ProjectMetricsRefreshed(project: project)
+}
+
+rule PropagateRiskToParentProject {
+    when: ProjectMetricsRefreshed(project)
+    requires: project.parent != null
+    ensures: ProjectMetricsRefreshRequested(project: project.parent)
+}
+
+rule RefreshPortfolioMetricsOnSchedule {
+    when: portfolio: PortfolioMetrics.captured_at + config.portfolio_metrics_refresh_interval <= now
+    ensures: PortfolioMetrics.created(
+        captured_at: now,
+        critical_count: 0,
+        high_count: 0,
+        medium_count: 0,
+        low_count: 0,
+        unassigned_count: 0,
+        policy_violation_fail_count: 0,
+        policy_violation_warn_count: 0,
+        policy_violation_info_count: 0,
+        inherited_risk_score: 0
+    )
+}
+
+-- Notification dispatch flow ----------------------------------------
+
+rule DispatchNotificationForNewVulnerableDependency {
+    when: NewVulnerableDependencyDetected(project, component, vulnerability)
+    ensures:
+        for nrule in NotificationRules where is_enabled:
+            if new_vulnerable_dependency in nrule.groups:
+                NotificationDispatch.created(
+                    notification_rule: nrule,
+                    group: new_vulnerable_dependency,
+                    level: nrule.level,
+                    subject_project: project,
+                    queued_at: now,
+                    status: pending
+                )
+}
+
+rule DispatchNotificationForPolicyViolation {
+    when: PolicyViolationDetected(project, component, policy)
+    ensures:
+        for nrule in NotificationRules where is_enabled:
+            if policy_violation in nrule.groups:
+                NotificationDispatch.created(
+                    notification_rule: nrule,
+                    group: policy_violation,
+                    level: nrule.level,
+                    subject_project: project,
+                    queued_at: now,
+                    status: pending
+                )
+}
+
+rule DispatchNotificationForBomProcessed {
+    when: BomProcessed(project, bom)
+    ensures:
+        for nrule in NotificationRules where is_enabled:
+            if bom_processed in nrule.groups:
+                NotificationDispatch.created(
+                    notification_rule: nrule,
+                    group: bom_processed,
+                    level: nrule.level,
+                    subject_project: project,
+                    queued_at: now,
+                    status: pending
+                )
+}
+
+rule DispatchNotificationForBomFailure {
+    when: BomProcessingFailureNotified(project, bom, reason)
+    ensures:
+        for nrule in NotificationRules where is_enabled:
+            if bom_processing_failed in nrule.groups:
+                NotificationDispatch.created(
+                    notification_rule: nrule,
+                    group: bom_processing_failed,
+                    level: error,
+                    subject_project: project,
+                    queued_at: now,
+                    status: pending
+                )
+}
+
+rule BeginNotificationDelivery {
+    when: dispatch: NotificationDispatch.status becomes pending
+    requires: dispatch.status = pending
+    ensures: dispatch.status = delivering
+}
+
+rule MarkNotificationDelivered {
+    when: NotificationDeliverySucceeded(dispatch)
+    requires: dispatch.status = delivering
+    ensures:
+        dispatch.status = delivered
+        dispatch.delivered_at = now
+}
+
+rule MarkNotificationFailed {
+    when: NotificationDeliveryFailed(dispatch, reason)
+    requires: dispatch.status = delivering
+    ensures:
+        dispatch.status = failed
+        dispatch.failure_reason = reason
+}
+
+-- Mirror / sync flow ------------------------------------------------
+
+rule ScheduleVulnerabilityMirror {
+    when: task: MirrorTask.next_run_at <= now
+    requires: task.state = idle
+    ensures:
+        task.state = running
+        task.started_at = now
+}
+
+rule CompleteVulnerabilityMirror {
+    when: MirrorTaskCompleted(task)
+    requires: task.state = running
+    ensures:
+        task.state = succeeded
+        task.finished_at = now
+        task.next_run_at = now + config.vulnerability_mirror_interval
+        MirrorTaskFinalised(task: task)
+}
+
+rule FailVulnerabilityMirror {
+    when: MirrorTaskFailed(task, reason)
+    requires: task.state = running
+    ensures:
+        task.state = failed
+        task.finished_at = now
+        task.failure_reason = reason
+        task.next_run_at = now + config.vulnerability_mirror_interval
+        MirrorTaskFinalised(task: task)
+}
+
+rule ReturnMirrorToIdle {
+    when: MirrorTaskFinalised(task)
+    requires: task.state in {succeeded, failed}
+    ensures:
+        task.state = idle
+        task.started_at = null
+        task.finished_at = null
+        task.failure_reason = null
+}
+
+rule ScheduleEpssRefresh {
+    when: task: EpssRefreshTask.next_run_at <= now
+    requires: task.state = idle
+    ensures:
+        task.state = running
+        task.started_at = now
+}
+
+rule CompleteEpssRefresh {
+    when: EpssRefreshTaskCompleted(task)
+    requires: task.state = running
+    ensures:
+        task.state = succeeded
+        task.finished_at = now
+        task.next_run_at = now + config.epss_refresh_interval
+        EpssRefreshFinalised(task: task)
+}
+
+rule FailEpssRefresh {
+    when: EpssRefreshTaskFailed(task, reason)
+    requires: task.state = running
+    ensures:
+        task.state = failed
+        task.finished_at = now
+        task.failure_reason = reason
+        task.next_run_at = now + config.epss_refresh_interval
+        EpssRefreshFinalised(task: task)
+}
+
+rule ReturnEpssToIdle {
+    when: EpssRefreshFinalised(task)
+    requires: task.state in {succeeded, failed}
+    ensures:
+        task.state = idle
+        task.started_at = null
+        task.finished_at = null
+        task.failure_reason = null
+}
+
+-- Finding export flow -----------------------------------------------
+
+rule RequestFindingExport {
+    when: ExportFindings(actor, project, target)
+    requires: actor in project.access_teams.members.user
+    ensures: FindingExport.created(
+        target: target,
+        project: project,
+        requested_at: now,
+        status: pending
+    )
+}
+
+rule BeginFindingExport {
+    when: export: FindingExport.status becomes pending
+    requires: export.status = pending
+    ensures: export.status = in_flight
+}
+
+rule CompleteFindingExport {
+    when: FindingExportSucceeded(export)
+    requires: export.status = in_flight
+    ensures:
+        export.status = succeeded
+        export.completed_at = now
+}
+
+rule FailFindingExport {
+    when: FindingExportFailed(export, reason)
+    requires: export.status = in_flight
+    ensures:
+        export.status = failed
+        export.failure_reason = reason
+}
+
+------------------------------------------------------------
+-- Invariants
+------------------------------------------------------------
+
+invariant UniqueVulnerabilityIdentity {
+    for a in Vulnerabilities:
+        for b in Vulnerabilities:
+            a != b implies not (a.vuln_id = b.vuln_id and a.source = b.source)
+}
+
+invariant FindingsRequireProjectAccessAlignment {
+    for f in Findings:
+        f.component.project = f.project
+}
+
+invariant SuppressedAnalysisHasResolution {
+    for a in Analyses:
+        a.is_suppressed implies a.state != not_set
+}
+
+invariant LatestProjectExclusivity {
+    for a in Projects:
+        for b in Projects:
+            a != b and a.name = b.name and a.is_latest and b.is_latest
+                implies false
+}
+
+------------------------------------------------------------
+-- Actor Declarations
+------------------------------------------------------------
+
+actor Administrator {
+    identified_by: User where memberships.any(m => m.team.role = admin)
+}
+
+actor PortfolioManager {
+    identified_by: User where memberships.any(m => m.team.role = portfolio_manager)
+}
+
+actor Auditor {
+    identified_by: User where memberships.any(m => m.team.role = auditor)
+}
+
+actor TeamMember {
+    identified_by: User where memberships.count > 0 and is_active
+}
+
+actor AutomationClient {
+    identified_by: ApiKey where is_active
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface ProjectPortfolio {
+    facing viewer: TeamMember
+
+    context project: Project
+        where access_teams.any(t => t in viewer.memberships.team)
+
+    exposes:
+        project.name
+        project.version
+        project.classifier
+        project.tags
+        project.is_latest
+        project.last_inherited_risk_score
+        project.children
+        project.findings
+        project.policy_violations
+
+    provides:
+        UploadBom(project, format, spec_version, serial_number)
+        UploadVex(project)
+        ExportFindings(viewer, project, target)
+}
+
+surface FindingTriage {
+    facing auditor: Auditor
+
+    context finding: Finding
+        where project.access_teams.any(t => t in auditor.memberships.team)
+
+    exposes:
+        finding.component.name
+        finding.component.version
+        finding.vulnerability.vuln_id
+        finding.vulnerability.severity
+        finding.vulnerability.cvss
+        finding.vulnerability.epss
+        finding.vulnerability.description
+        finding.analysis.state
+        finding.analysis.justification
+        finding.analysis.response
+        finding.analysis.details
+        finding.analysis.is_suppressed
+        finding.analysis.comments
+
+    provides:
+        UpdateAnalysis(auditor, finding, new_state, justification, response, details)
+        SuppressFinding(auditor, finding)
+        CommentOnAnalysis(auditor, finding.analysis, body)
+}
+
+surface ViolationTriage {
+    facing auditor: Auditor
+
+    context violation: PolicyViolation
+        where project.access_teams.any(t => t in auditor.memberships.team)
+
+    exposes:
+        violation.policy.name
+        violation.violation_type
+        violation.detected_at
+        violation.component.name
+        violation.component.version
+        violation.analysis.state
+        violation.analysis.is_suppressed
+
+    provides:
+        UpdateViolationAnalysis(auditor, violation, new_state)
+        SuppressViolation(auditor, violation)
+}
+
+surface PolicyAdministration {
+    facing admin: Administrator
+
+    context policy: Policy
+
+    exposes:
+        policy.name
+        policy.operator
+        policy.violation_level
+        policy.is_global
+        policy.scoped_projects
+        policy.scoped_tags
+        policy.conditions
+        policy.violations
+}
+
+surface NotificationConfiguration {
+    facing admin: Administrator
+
+    context notification_rule: NotificationRule
+
+    exposes:
+        notification_rule.name
+        notification_rule.scope
+        notification_rule.level
+        notification_rule.groups
+        notification_rule.publisher
+        notification_rule.is_enabled
+        notification_rule.project_filter
+        notification_rule.tag_filter
+}
+
+surface VulnerabilitySourceAdministration {
+    facing admin: Administrator
+
+    context task: MirrorTask
+
+    exposes:
+        task.source
+        task.state
+        task.next_run_at
+
+    timeout:
+        ScheduleVulnerabilityMirror
+}
+
+surface EpssAdministration {
+    facing admin: Administrator
+
+    context task: EpssRefreshTask
+
+    exposes:
+        task.state
+        task.next_run_at
+
+    timeout:
+        ScheduleEpssRefresh
+}
+
+surface CiAutomationIntake {
+    facing client: AutomationClient
+
+    context project: Project
+        where client.team in access_teams
+
+    exposes:
+        project.name
+        project.version
+        project.last_inherited_risk_score
+
+    provides:
+        UploadBom(project, format, spec_version, serial_number)
+        UploadVex(project)
+
+    @guidance
+        -- CI/CD pipelines authenticate via API key and upload BOMs and
+        -- VEX documents at build time. The platform processes the BOM
+        -- asynchronously; the client polls for completion.
+}
+
+------------------------------------------------------------
+-- Open Questions
+------------------------------------------------------------
+
+open question "How are vulnerability source priorities resolved when multiple sources report the same CVE for the same component?"
+open question "What is the retention policy for completed BOMs and their reconciliation history?"
+open question "When a project is deleted, what happens to its findings, analyses and policy violations?"
+open question "How are stale ComponentAnalysisCache entries garbage-collected once they go stale?"
+open question "What is the dispatch behaviour when a NotificationRule's publisher endpoint is unreachable beyond the max attempts threshold?"
+open question "Should AutomationClient be able to perform analysis updates, or only ingestion (BOM/VEX upload)?"
+open question "How is the inherited_risk_score computed from child project metrics — what is the formula and is it weighted?"
+open question "How do federated identities (OIDC, LDAP) map onto Team memberships at first sign-in?"
