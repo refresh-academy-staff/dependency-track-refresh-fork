@@ -19,6 +19,9 @@ Both categories are covered here. Each gap section includes:
 2. **Current DT state** — what exists today
 3. **The gap** — what is missing or insufficient
 4. **Implementation approach** — specific, concrete steps to address it
+5. **Estimate** — itemised day costs
+
+**Estimate assumptions:** single experienced Java developer familiar with DT patterns; days are 8h working days; each step estimate includes writing unit and integration tests following DT conventions; excludes Vue frontend changes, code review iterations, QA/acceptance testing, and documentation writing.
 
 ---
 
@@ -78,6 +81,18 @@ Wire these into `TaskScheduler` as scheduled checks (daily). Each fires notifica
 **Step 5 — Upgrade migration.** Add a new class in `upgrade/v4140/` (or a new version folder) that back-fills `firstMarketDate = null` and `supportPeriodEndDate = null` for existing projects, and adds a UI warning to projects with null lifecycle dates.
 
 **Step 6 — Allium spec update.** Extend `Project` entity with `first_market_date`, `support_period_end_date`, `support_period_rationale`. Add rules `WarnApproachingEndOfSupport` and `NotifyEndOfSupportReached`.
+
+### Estimate
+
+| Item | Days |
+|------|------|
+| Step 1: 3 JDO fields on `Project` + DB upgrade migration class | 1.0 |
+| Step 2: Custom Bean Validation constraint (`@MinSupportPeriod`) | 0.5 |
+| Step 3: 2 new events + `TaskScheduler` daily check + 2 new `NotificationGroup` values | 1.5 |
+| Step 4: `ProjectResource` GET/PUT extension + `/lifecycle` endpoint | 1.0 |
+| Step 5: Upgrade migration (back-fill nulls + existing-project warning logic) | 0.5 |
+| Step 6: Allium spec update | 0.5 |
+| **Total** | **5.0** |
 
 ---
 
@@ -142,7 +157,7 @@ entity CraReportingObligation {
     early_warning_submitted_at: Timestamp?
     notification_submitted_at: Timestamp?
     final_report_submitted_at: Timestamp?
-    status: pending | early_warning_overdue | notification_overdue | 
+    status: pending | early_warning_overdue | notification_overdue |
             final_report_overdue | completed
 }
 ```
@@ -152,6 +167,18 @@ entity CraReportingObligation {
 **Step 5 — Add TaskScheduler job** that checks `CraReportingObligation` records for overdue steps and escalates them with additional notifications.
 
 **Step 6 — REST API endpoint** `GET /api/v1/cra/reporting-obligations` returning open obligations, filterable by project, sorted by urgency. This gives operators a compliance dashboard.
+
+### Estimate
+
+| Item | Days |
+|------|------|
+| Step 1: 2 fields on `Vulnerability` + DB migration | 0.5 |
+| Step 2: `CisaKevMirrorTask` — HTTP fetch, JSON parse, bulk upsert, event + `TaskScheduler` wiring | 2.0 |
+| Step 3: `CraReportingObligation` entity + state machine + `QueryManager` methods | 2.0 |
+| Step 4: `ActivelyExploitedVulnerabilityDetectedEvent` + `NotificationGroup` wiring + obligation creation hook | 1.0 |
+| Step 5: `TaskScheduler` overdue-escalation job | 0.5 |
+| Step 6: `GET /api/v1/cra/reporting-obligations` with project filter + urgency sort | 1.0 |
+| **Total** | **7.0** |
 
 ---
 
@@ -208,6 +235,17 @@ Key CSAF fields to populate from DT data:
 **Step 4 — VEX export surfacing.** DT already consumes VEX but the export path is hidden. Add explicit `GET /api/v1/project/{uuid}/vex` returning a CycloneDX VEX document populated from current `Analysis` states. This satisfies CRA requirements for communicating "not affected" statuses to downstream integrators.
 
 **Step 5 — Integrate CSAF generation into `BomUploadProcessingTask` post-analysis.** When a finding with `is_actively_exploited = true` is detected, automatically draft a CSAF advisory (status: draft). Analysts promote it to `interim` / `final` via the triage surface.
+
+### Estimate
+
+| Item | Days |
+|------|------|
+| Step 1: `CsafAdvisoryPublisher` — full CSAF 2.0 JSON generation (document, product_tree, vulnerabilities sections) | 4.0 |
+| Step 2: `SecurityAdvisory` entity + `QueryManager` + DB migration | 1.5 |
+| Step 3: `AdvisoryResource` — 3 REST endpoints + CSAF provider-metadata.json | 1.5 |
+| Step 4: `GET /api/v1/project/{uuid}/vex` — CycloneDX VEX from current Analysis states | 1.5 |
+| Step 5: Auto-draft CSAF in `BomUploadProcessingTask` post-analysis hook | 1.0 |
+| **Total** | **9.5** |
 
 ---
 
@@ -270,6 +308,17 @@ Also add `GET /.well-known/security.txt` for the platform-level policy.
 - `GET /api/v1/project/{uuid}/cvdpolicy` — get effective CVD policy for a project
 
 **Step 5 — Policy version history.** Each update to a `CvdPolicy` creates a `CvdPolicyRevision` record (similar to `AnalysisComment` audit trail). This satisfies the "documentation" requirement of Annex VII.
+
+### Estimate
+
+| Item | Days |
+|------|------|
+| Step 1: `CvdPolicy` entity + DB migration | 1.0 |
+| Step 2: `Project` FK + portfolio-level inheritance fallback logic | 0.5 |
+| Step 3: `security.txt` endpoints — per-project + `/.well-known/security.txt` | 1.0 |
+| Step 4: `CvdPolicyResource` — 4 REST endpoints + permission checks | 1.5 |
+| Step 5: `CvdPolicyRevision` audit trail entity + auto-versioning on update | 0.5 |
+| **Total** | **4.5** |
 
 ---
 
@@ -336,6 +385,18 @@ DT is entirely inbound-scanner-driven. There is no:
 
 **Step 6 — Integration with `CraReportingObligation`.** If a confirmed report maps to a vulnerability with `is_actively_exploited = true`, automatically create a `CraReportingObligation` for the 24h/72h/14-day CRA reporting chain.
 
+### Estimate
+
+| Item | Days |
+|------|------|
+| Step 1: `InboundVulnerabilityReport` entity + state machine + `QueryManager` + DB migration | 2.0 |
+| Step 2: Public intake endpoint — rate limiting, tracking ID generation, anon support, status endpoint | 2.5 |
+| Step 3: Analyst triage resource — confirm/reject, link to finding/vuln, reporter-response via tracking ID | 2.0 |
+| Step 4: `InboundVulnerabilityReportReceivedEvent` + `NotificationGroup` wiring | 0.5 |
+| Step 5: CVD deadline `TaskScheduler` daily check + two new escalation events | 1.0 |
+| Step 6: `CraReportingObligation` creation hook on `confirmed` transition | 0.5 |
+| **Total** | **8.5** |
+
 ---
 
 ## GAP 6 — Patch / Fix Availability Tracking
@@ -390,6 +451,17 @@ This is a computed field, not stored. When `Finding` is returned via `FindingRes
 **Step 4 — Patch advisory generation.** Extend the `SecurityAdvisory` entity (from GAP 3) to include `remediation_steps` auto-populated from `patchedVersions` data. The CSAF output automatically picks this up.
 
 **Step 5 — `FindingResource` API extension.** Add `recommendedVersion`, `patchedVersions`, `isPatchApplied` to the Finding response JSON. This enables CI/CD pipelines to programmatically know what to upgrade to.
+
+### Estimate
+
+| Item | Days |
+|------|------|
+| Step 1: `patchedVersions` CLOB on `Vulnerability` + update NVD, OSV and Snyk parsers to populate it | 3.0 |
+| Step 2: `recommendedVersion` computed on `FindingResource` — purl parsing + version comparison logic | 1.0 |
+| Step 3: `is_patch_applied` detection in `BomUploadProcessingTask` reconciliation + `PatchAppliedEvent` + auto-RESOLVED transition | 2.0 |
+| Step 4: `SecurityAdvisory.remediationSteps` auto-population from `patchedVersions` (depends on GAP 3) | 0.5 |
+| Step 5: `FindingResource` JSON extension — 3 new fields | 0.5 |
+| **Total** | **7.0** |
 
 ---
 
@@ -474,6 +546,17 @@ For `"evidence_from_dt": "auto"` items, automatically populate evidence from DT 
 
 **Step 5 — Notification.** When `ProjectMetrics` changes significantly (e.g., new CRITICAL finding), fire a recommendation to update the risk assessment. Add to `TaskScheduler` a quarterly check that warns if no approved risk assessment exists or if the last approved assessment is older than 12 months.
 
+### Estimate
+
+| Item | Days |
+|------|------|
+| Step 1: `CybersecurityRiskAssessment` entity — complex fields, status state machine, `QueryManager`, DB migration | 2.0 |
+| Step 2: Annex I Part I JSON template generation + auto-evidence population from `ProjectMetrics` and `PolicyViolation` | 2.5 |
+| Step 3: `CybersecurityRiskAssessmentResource` — 5 REST endpoints + approve/supersede lifecycle | 2.0 |
+| Step 4: Support period auto-calculation linkage | 0.5 |
+| Step 5: Critical-finding notification hook + quarterly `TaskScheduler` staleness check | 1.0 |
+| **Total** | **8.0** |
+
 ---
 
 ## GAP 8 — End-of-Support Notification to Users
@@ -506,6 +589,16 @@ This gap is partially covered by GAP 1 (adding `supportPeriodEndDate` to `Projec
 **Step 3 — Warning banner in API.** When `GET /api/v1/project/{uuid}` is called and `supportPeriodEndDate < now`, add a `cra_warnings: ["END_OF_SUPPORT_REACHED"]` field to the response. CI/CD pipelines polling DT can use this to gate deployments.
 
 **Step 4 — Public EOL advisory.** When a project reaches EOL, automatically draft a CSAF advisory (from GAP 3) with `document.tracking.status = "final"` and `vulnerabilities[].remediations[].category = "no_fix_planned"`. This is the CRA Article 13(11) "clearly inform users of risks" mechanism.
+
+### Estimate
+
+| Item | Days |
+|------|------|
+| Step 1: `EolRiskPolicyEvaluator` + endoflife.date API integration + purl-prefix matching | 1.5 |
+| Step 2: `EndOfLifeMirrorTask` + `ComponentEolRecord` entity + `TaskScheduler` wiring | 2.0 |
+| Step 3: `cra_warnings` field in `ProjectResource` GET response | 0.5 |
+| Step 4: Auto-draft EOL CSAF advisory on EOL reached event (depends on GAP 3) | 0.5 |
+| **Total** | **4.5** |
 
 ---
 
@@ -558,6 +651,16 @@ No publisher routes notifications to "product users" (downstream consumers of th
 **Step 3 — CSAF distribution feed endpoint.** Each project gets a public CSAF distribution feed: `GET /api/v1/project/{uuid}/csaf-feed` returning a list of published advisories. Subscribers poll this feed. This is the "automatic" dissemination mechanism per Annex I Part II(7).
 
 **Step 4 — CSAF Provider Index.** Per the CSAF specification, add `GET /.well-known/csaf/provider-metadata.json` returning the platform-level CSAF provider document so automated consumers (CERT/CC aggregators) can discover and subscribe.
+
+### Estimate
+
+| Item | Days |
+|------|------|
+| Step 1: `CraAdvisoryWebhookPublisher` — CSAF 2.0 JSON body, CRA-structured payload per Art 14(2)/(4) | 2.0 |
+| Step 2: `NotificationSubscriber` entity + `QueryManager` + DB migration + routing extension in `NotificationRule` dispatch | 1.5 |
+| Step 3: `GET /api/v1/project/{uuid}/csaf-feed` + subscription-aware dispatch | 1.0 |
+| Step 4: `/.well-known/csaf/provider-metadata.json` endpoint | 0.5 |
+| **Total** | **5.0** |
 
 ---
 
@@ -616,6 +719,17 @@ Gaps in the current SBOM implementation:
 
 Returns as a ZIP archive. This directly satisfies Article 13(22) ("provide... all the information and documentation... necessary to demonstrate conformity").
 
+### Estimate
+
+| Item | Days |
+|------|------|
+| Step 1: `Bom.is_current` flag + versioned-artifact semantics in `BomUploadProcessingTask` + DB migration | 1.0 |
+| Step 2: Enriched SBOM export — `vulnerabilities` array, VEX statements, `metadata.lifecycles`, `metadata.supplier` | 3.0 |
+| Step 3: SBOM signing via JCA — key config, RSA/ECDSA sign, CycloneDX `signature` field injection | 2.0 |
+| Step 4: `SbomCompletenessEvaluator` policy condition (3 completeness checks + `OPERATIONAL` violations) | 1.5 |
+| Step 5: `/cra-technical-documentation` ZIP bundle endpoint (aggregates outputs from GAPs 1,2,4,7) | 1.0 |
+| **Total** | **8.5** |
+
 ---
 
 ## GAP 11 — Severe Incident Tracking and Reporting
@@ -647,7 +761,7 @@ No `SevereIncident` entity, no incident timeline tracking, no CSIRT/ENISA notifi
 //   project: Project
 //   title: String
 //   description: CLOB
-//   incident_type: malicious_code_introduced | availability_impacted | 
+//   incident_type: malicious_code_introduced | availability_impacted |
 //                  integrity_violated | confidentiality_violated | other
 //   detected_at: Timestamp
 //   severity: Severity
@@ -655,7 +769,7 @@ No `SevereIncident` entity, no incident timeline tracking, no CSIRT/ENISA notifi
 //   linked_vulnerabilities: Set<Vulnerability>
 //   linked_findings: Set<Finding>
 //   is_suspected_malicious: Boolean (required by Article 14(4)(a))
-//   status: detected | early_warning_submitted | notification_submitted | 
+//   status: detected | early_warning_submitted | notification_submitted |
 //           final_report_submitted | closed
 //   early_warning_due_at: Timestamp   // detected_at + 24h
 //   notification_due_at: Timestamp    // detected_at + 72h
@@ -679,6 +793,17 @@ This is structurally identical to the existing `AbstractWebhookPublisher` but wi
 **Step 4 — Automatic incident creation from KEV hits.** When `is_actively_exploited` transitions to `true` for a vulnerability affecting a project (from GAP 2 KEV mirror), automatically draft a `SevereIncident` with status `detected`. The analyst confirms or dismisses it. This prevents the 24-hour deadline from being missed due to analyst not noticing the notification.
 
 **Step 5 — REST API.** New `resources/v1/SevereIncidentResource.java` with full CRUD + lifecycle transitions.
+
+### Estimate
+
+| Item | Days |
+|------|------|
+| Step 1: `SevereIncident` entity — complex fields, state machine, linked collections, `QueryManager`, DB migration | 2.0 |
+| Step 2: `TaskScheduler` deadline-escalation job for 24h/72h/30-day thresholds | 1.0 |
+| Step 3: `CsirtNotificationPublisher` — Art 14(4) structured payload, CSIRT/ENISA webhook, response recording | 1.5 |
+| Step 4: Auto-draft `SevereIncident` on KEV `activelyExploited` transition + confirm/dismiss analyst action | 0.5 |
+| Step 5: `SevereIncidentResource` — full CRUD + lifecycle transition endpoints | 1.5 |
+| **Total** | **6.5** |
 
 ---
 
@@ -713,6 +838,14 @@ private String hardwareRevision;
 These are optional fields. For software products, the existing `purl`/`cpe`/`swidTagId` remain the primary identifiers. For hardware/firmware projects, these provide the CRA Article 13(15) identification mechanism.
 
 **Step 2 — Add to `ProjectResource` API and BOM import.** When importing a CycloneDX BOM for a hardware/firmware project, map `metadata.component.bom-ref` to `batchNumber` and any hardware-specific properties to `hardwareRevision`.
+
+### Estimate
+
+| Item | Days |
+|------|------|
+| Step 1: 2 optional fields on `Project` + DB migration | 0.5 |
+| Step 2: `ProjectResource` GET/PUT extension + CycloneDX BOM import mapping | 0.5 |
+| **Total** | **1.0** |
 
 ---
 
@@ -756,6 +889,16 @@ DT has no mechanism to track that a security update was published, what it conta
 **Step 3 — Retention warning.** Add to `TaskScheduler` a monthly check that warns (`SecurityUpdateRetentionDue`) when a `SecurityUpdate.retain_until` is within 90 days. This gives operators time to ensure the update remains accessible.
 
 **Step 4 — REST endpoint.** `GET /api/v1/project/{uuid}/security-updates` returns the update history. This is the "public software archive" per CRA Article 13(11).
+
+### Estimate
+
+| Item | Days |
+|------|------|
+| Step 1: `SecurityUpdate` entity + `retain_until` calculation + `QueryManager` + DB migration | 1.0 |
+| Step 2: BOM upload flow integration — finding-delta detection + `SecurityUpdate` creation suggestion | 1.5 |
+| Step 3: Monthly `TaskScheduler` retention warning job + `SecurityUpdateRetentionDue` notification | 0.5 |
+| Step 4: `GET /api/v1/project/{uuid}/security-updates` endpoint | 0.5 |
+| **Total** | **3.5** |
 
 ---
 
@@ -811,6 +954,15 @@ Returns a PDF or structured JSON conforming to Annex V structure.
 
 **Step 3 — Public DoC URL.** Each issued DoC gets a public permalink: `GET /api/v1/doc/{uuid}` (no auth). This is the URL included in product documentation per Article 13(20). Implements the "internet address at which the EU declaration of conformity can be accessed" per Annex II(6).
 
+### Estimate
+
+| Item | Days |
+|------|------|
+| Step 1: `DeclarationOfConformity` entity + `retain_until` calculation + `QueryManager` + DB migration | 1.0 |
+| Step 2: DoC generation endpoint — Annex V structure JSON + PDF rendering (Apache PDFBox or iText) | 2.5 |
+| Step 3: Public unauthenticated permalink endpoint | 0.5 |
+| **Total** | **4.0** |
+
 ---
 
 ## Summary Table
@@ -858,3 +1010,70 @@ Returns a PDF or structured JSON conforming to Annex V structure.
 13. GAP 13: `SecurityUpdate` entity + retention tracking
 14. GAP 14: `DeclarationOfConformity` entity + PDF generation
 15. GAP 12: batch/serial number fields (trivial, can be done any time)
+
+---
+
+## Estimate Summary
+
+### Itemised recap by gap
+
+| Gap | Title | Days |
+|-----|-------|-----:|
+| GAP 1 | Support period tracking | 5.0 |
+| GAP 2 | Actively exploited vuln flagging + CISA KEV | 7.0 |
+| GAP 3 | CSAF structured advisory output | 9.5 |
+| GAP 4 | CVD policy management | 4.5 |
+| GAP 5 | External vulnerability report intake | 8.5 |
+| GAP 6 | Patch / fix availability tracking | 7.0 |
+| GAP 7 | Cybersecurity risk assessment per product | 8.0 |
+| GAP 8 | End-of-support notification | 4.5 |
+| GAP 9 | Machine-readable user notification | 5.0 |
+| GAP 10 | SBOM completeness + CRA-format export | 8.5 |
+| GAP 11 | Severe incident tracking + CSIRT reporting | 6.5 |
+| GAP 12 | Product identification (batch/serial) | 1.0 |
+| GAP 13 | Security update retention (10-year) | 3.5 |
+| GAP 14 | EU Declaration of Conformity | 4.0 |
+| **Raw total** | | **82.5** |
+
+### Phase breakdown
+
+| Phase | Gaps | Days |
+|-------|------|-----:|
+| Phase 1 — Foundational data model | GAP 1, GAP 2 (Steps 1-2), GAP 6 (Step 1) | ~11.5 |
+| Phase 2 — Regulatory lifecycle entities | GAP 4, GAP 5, GAP 2 (Steps 3-6), GAP 11 | ~24.5 |
+| Phase 3 — Output and advisory | GAP 3, GAP 9, GAP 10 | ~23.0 |
+| Phase 4 — Compliance documentation | GAP 7, GAP 8, GAP 13, GAP 14, GAP 12 | ~21.0 |
+| **Subtotal** | | **80.0** |
+
+> Phase subtotals differ slightly from gap totals because some steps are split across phases.
+
+### Contingency
+
+A 15% contingency is applied to account for: unexpected DataNucleus JDO bytecode enhancement friction, schema migration edge cases across the four supported databases (H2, PostgreSQL, MySQL, MSSQL), cross-gap integration complexity surfacing during implementation, and code review revision cycles.
+
+| | Days |
+|-|-----:|
+| Raw total | 82.5 |
+| Contingency (15%) | 12.5 |
+| **Adjusted total** | **95.0** |
+
+### Calendar conversion (single developer)
+
+| Scenario | Working days | Approximate calendar time |
+|----------|-------------|--------------------------|
+| Raw estimate, 1 developer | 82.5 | ~4.1 months |
+| Adjusted estimate, 1 developer | 95.0 | ~4.8 months |
+| 2 parallel developers (Phases 1+2 ‖ Phases 3+4) | 95.0 ÷ 1.7\* | ~2.8 months |
+| 3 parallel developers (split by phase) | 95.0 ÷ 2.4\* | ~2.0 months |
+
+\* Parallelisation factor is sub-linear due to shared entity dependencies (GAP 3 CSAF output is a dependency for GAPs 8, 9, 10; GAP 2 KEV data is consumed by GAPs 11 and 5).
+
+### What is excluded from these estimates
+
+- Vue frontend changes (project lifecycle UI, triage surfaces, advisory viewer, DoC viewer)
+- OpenAPI/Swagger documentation updates
+- End-to-end QA and acceptance testing
+- Code review time for PRs
+- Deployment, infrastructure configuration, and key management for SBOM signing
+- CSIRT/ENISA endpoint integration testing (requires real CSIRT test environment)
+- User documentation and operator guides
