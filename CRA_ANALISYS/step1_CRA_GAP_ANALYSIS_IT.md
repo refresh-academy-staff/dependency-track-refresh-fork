@@ -1,8 +1,8 @@
-# Analisi dei Gap CRA: Dependency-Track v4.14 vs Regolamento UE 2024/2847 (Cyber Resilience Act)
+# Analisi dei Gap CRA: Dependency-Track v4.14 vs Regolamento UE 2024/2847 (Cyber Resilience Act - il documento preso dalla gazzetta ufficiale)
 
-**Regolamento:** REGOLAMENTO (UE) 2024/2847 DEL PARLAMENTO EUROPEO E DEL CONSIGLIO del 23 ottobre 2024  
-**Titolo completo:** Requisiti orizzontali di cybersicurezza per i prodotti con elementi digitali (Cyber Resilience Act — CRA)  
-**Pubblicato:** Gazzetta Ufficiale dell'UE, serie L 2024/2847, 20.11.2024  
+**Regolamento:** REGOLAMENTO (UE) 2024/2847 DEL PARLAMENTO EUROPEO E DEL CONSIGLIO del 23 ottobre 2024
+**Titolo completo:** Requisiti orizzontali di cybersicurezza per i prodotti con elementi digitali (Cyber Resilience Act — CRA)
+**Pubblicato:** Gazzetta Ufficiale dell'UE, serie L 2024/2847, 20.11.2024
 **Specifica di riferimento:** `dependency-track.allium` (distillata da DT v4.14.0)
 
 ---
