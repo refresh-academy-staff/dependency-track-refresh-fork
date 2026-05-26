@@ -1,0 +1,121 @@
+ID,Modulo,Ambito,Sotto-ambito,Funzionalità,Tag,Scope
+1,M1,Registro Prodotti e Installed Base,Registro Prodotti,"Catalogo modelli macchina (nome, versione, varianti)",Basic,Basic
+2,M1,Registro Prodotti e Installed Base,Registro Prodotti,Versioning hardware/firmware/software per modello,Must-have,Must-have
+3,M1,Registro Prodotti e Installed Base,Registro Prodotti,"Ciclo di vita prodotto: date intro, fine supporto (EoS), fine vita (EoL)",Must-have,Dubbio
+4,M1,Registro Prodotti e Installed Base,Registro Prodotti,Classificazione CRA del prodotto (default / Classe I / Classe II),Must-have,Must-have
+5,M1,Registro Prodotti e Installed Base,Registro Prodotti,Hosting e versioning della CVD policy pubblica,Must-have,Must-have
+6,M1,Registro Prodotti e Installed Base,Registro Prodotti,Canale di ricezione segnalazioni vulnerabilità esterne (CVD inbound),Must-have,Must-have
+7,M1,Registro Prodotti e Installed Base,Registro Prodotti,Gestione sedi/impianti multipli per cliente,Enterprise,Enterprise
+9,M1,Registro Prodotti e Installed Base,Registro Clienti e Installed Base,Anagrafica clienti B2B con referenti tecnici e referenti notifica sicurezza,Must-have,Dubbio
+10,M1,Registro Prodotti e Installed Base,Registro Clienti e Installed Base,Installed base: cliente × prodotto × versione × sede/impianto,Must-have,Must-have
+11,M1,Registro Prodotti e Installed Base,Registro Clienti e Installed Base,Data installazione e stato contratto di supporto (attivo/scaduto),Enterprise,Dubbio
+12,M1,Registro Prodotti e Installed Base,Registro Clienti e Installed Base,Storico completo delle comunicazioni per cliente,Enterprise,Dubbio
+13,M1,Registro Prodotti e Installed Base,Registro Clienti e Installed Base,"Canali di notifica per cliente (email, referente tecnico, referente sicurezza)",Must-have,Dubbio
+15,M2,Gestione SBOM,Acquisizione SBOM,Import SBOM da file CycloneDX (formato primario),Basic,Basic
+16,M2,Gestione SBOM,Acquisizione SBOM,Inserimento manuale componenti con form strutturato,Basic,Basic
+17,M2,Gestione SBOM,Acquisizione SBOM,Modalità ibrida: import scanner + delta manuale (ogni modifica tracciata come delta separato),Basic,Basic
+19,M2,Gestione SBOM,Acquisizione SBOM,"Validazione formato in ingresso (PURL, range di versione)",Basic,Basic
+20,M2,Gestione SBOM,Acquisizione SBOM,PURL e/o CPE obbligatori per tutti i componenti,Must-have,Must-have
+21,M2,Gestione SBOM,Versioning e Ciclo di Vita SBOM,Versioning automatico SBOM a ogni modifica (major/minor/patch),Must-have,Must-have
+22,M2,Gestione SBOM,Versioning e Ciclo di Vita SBOM,Freeze SBOM per versioni di prodotto rilasciate (immutabilità con annotazione),Must-have,Must-have
+23,M2,Gestione SBOM,Versioning e Ciclo di Vita SBOM,Diff tra versioni SBOM (componenti aggiunti/rimossi/aggiornati),Enterprise,Dubbio
+24,M2,Gestione SBOM,Versioning e Ciclo di Vita SBOM,Libreria componenti condivisa cross-prodotto,Enterprise,Enterprise
+25,M2,Gestione SBOM,Architettura SBOM Tri-Livello,Build-time: integrazione CI/CD per generazione SBOM automatica a ogni build (Syft/Trivy),Enterprise,Dubbio
+26,M2,Gestione SBOM,Architettura SBOM Tri-Livello,Deploy-time: raccolta SBOM al momento dell'installazione o collaudo del macchinario,Enterprise,Dubbio
+28,M2,Gestione SBOM,VEX e Qualità del Dato,Supporto VEX: stati not_affected / affected / fixed / under_investigation,Must-have,Must-have
+29,M2,Gestione SBOM,VEX e Qualità del Dato,Workflow VEX con giustificazione obbligatoria per stato 'not_affected',Must-have,Must-have
+30,M2,Gestione SBOM,VEX e Qualità del Dato,Export VEX integrato nel CycloneDX output,Must-have,Must-have
+33,M3,Vulnerability Intelligence Feed,Fonti Integrate,NVD (NIST) — CVE API 2.0,Must-have,Must-have
+34,M3,Vulnerability Intelligence Feed,Fonti Integrate,OSV.dev (Google) — vulnerabilità open source,Must-have,Must-have
+35,M3,Vulnerability Intelligence Feed,Fonti Integrate,CISA KEV (Known Exploited Vulnerabilities),Must-have,Must-have
+36,M3,Vulnerability Intelligence Feed,Fonti Integrate,CISA ICS-CERT Advisories (sistemi di controllo industriale OT/SCADA/PLC/HMI),Enterprise,Dubbio
+37,M3,Vulnerability Intelligence Feed,Fonti Integrate,GitHub Advisory Database,Enterprise,Dubbio
+40,M3,Vulnerability Intelligence Feed,Matching e Arricchimento,Repository interno normalizzato (fonte unica: NVD + OSV + KEV + ICS-CERT),Must-have,Must-have
+41,M3,Vulnerability Intelligence Feed,Matching e Arricchimento,Matching CVE tramite PURL + CPE + alias (CVE/GHSA/OSV-ID),Must-have,Must-have
+42,M3,Vulnerability Intelligence Feed,Matching e Arricchimento,Flag CISA KEV su ogni CVE matchata nelle SBOM,Must-have,Must-have
+43,M3,Vulnerability Intelligence Feed,Matching e Arricchimento,Score di confidenza del match (alta/media/bassa confidenza),Enterprise,Dubbio
+44,M3,Vulnerability Intelligence Feed,Matching e Arricchimento,"EPSS score — probabilità exploit entro 30 giorni (FIRST.org API, gratuito)",Enterprise,Enterprise
+46,M3,Vulnerability Intelligence Feed,Matching e Arricchimento,End-of-support tracking componenti (EoS senza CVE associata),Enterprise,Dubbio
+47,M4,Risk Assessment e Triage,Impact Analysis,Impact analysis automatica: CVE → componenti matchati → prodotti → clienti installati,Must-have,Must-have
+48,M4,Risk Assessment e Triage,Impact Analysis,Lista prioritizzata: cliente × prodotto × versione × severità × contatto notifica,Must-have,Must-have
+49,M4,Risk Assessment e Triage,Impact Analysis,Propagazione automatica su libreria componenti condivisa cross-prodotto,Enterprise,Enterprise
+50,M4,Risk Assessment e Triage,Impact Analysis,Prioritizzazione per criticità del cliente (NIS2/infrastruttura critica = priorità più alta),Enterprise,Dubbio
+51,M4,Risk Assessment e Triage,Coda di Triage e Scoring,Coda di triage con stati: new / under_investigation / vex_assessed / notification_required / patch_available / closed,Must-have,Must-have
+52,M4,Risk Assessment e Triage,Coda di Triage e Scoring,Assegnazione owner e tracking del responsabile per ogni voce di triage,Must-have,Must-have
+53,M4,Risk Assessment e Triage,Coda di Triage e Scoring,"Timer SLA visibili: 24h da scoperta (se KEV), 72h per notifica formale",Must-have,Must-have
+54,M4,Risk Assessment e Triage,Coda di Triage e Scoring,CVSS base score da NVD — visualizzazione per ogni vulnerabilità,Basic,Basic
+55,M4,Risk Assessment e Triage,Coda di Triage e Scoring,Risk score composito: CVSS + EPSS + flag KEV,Enterprise,Dubbio
+56,M4,Risk Assessment e Triage,Coda di Triage e Scoring,VEX assessment workflow con giustificazione documentata,Must-have,Must-have
+58,M4,Risk Assessment e Triage,Coda di Triage e Scoring,Remediation plan con data prevista e milestone,Must-have,Dubbio
+59,M4,Risk Assessment e Triage,Coda di Triage e Scoring,Tracking disponibilità patch dal vendor del componente vulnerabile,Enterprise,Dubbio
+60,M5,Notifica e Disclosure Workflow,Sub-workflow A — Notifica ENISA/ACN,Trigger automatico: rilevamento CVE in CISA KEV su prodotto commercializzato,Must-have,Must-have
+61,M5,Notifica e Disclosure Workflow,Sub-workflow A — Notifica ENISA/ACN,"Early Warning 24h: template pre-compilato per ACN (prodotto, CVE, stima impatto)",Must-have,Must-have
+62,M5,Notifica e Disclosure Workflow,Sub-workflow A — Notifica ENISA/ACN,"Notifica Formale 72h: report strutturato (componente SBOM, CVSS, clienti impattati, piano remediation)",Must-have,Must-have
+63,M5,Notifica e Disclosure Workflow,Sub-workflow A — Notifica ENISA/ACN,"Report Finale 14 giorni: azioni intraprese, patch rilasciata/programmata, esito",Must-have,Must-have
+64,M5,Notifica e Disclosure Workflow,Sub-workflow A — Notifica ENISA/ACN,Audit trail comunicazioni ENISA/ACN (registro immutabile di tutte le segnalazioni),Must-have,Must-have
+65,M5,Notifica e Disclosure Workflow,Sub-workflow A — Notifica ENISA/ACN,Distinzione chiara tra reporting regolatorio e gestione interna vulnerabilità,Must-have,Must-have
+67,M5,Notifica e Disclosure Workflow,Sub-workflow B — Notifica Clienti B2B,Email notification ai clienti B2B impattati (lista da impact analysis),Basic,Dubbio
+68,M5,Notifica e Disclosure Workflow,Sub-workflow B — Notifica Clienti B2B,"Template email parametrici (cliente, prodotto, versione, CVE, gravità, azioni raccomandate)",Basic,Dubbio
+69,M5,Notifica e Disclosure Workflow,Sub-workflow B — Notifica Clienti B2B,"Tipologia: advisory informativo (vulnerabilità nota, nessuna azione immediata richiesta)",Enterprise,Dubbio
+70,M5,Notifica e Disclosure Workflow,Sub-workflow B — Notifica Clienti B2B,Tipologia: richiesta intervento da remoto (patch applicabile da remoto),Enterprise,Dubbio
+71,M5,Notifica e Disclosure Workflow,Sub-workflow B — Notifica Clienti B2B,Tipologia: piano aggiornamento programmato (intervento richiede presenza in loco),Enterprise,Dubbio
+72,M5,Notifica e Disclosure Workflow,Sub-workflow B — Notifica Clienti B2B,"Tipologia: blocco immediato funzione critica (vulnerabilità sfruttata attivamente, rischio immediato)",Enterprise,Enterprise
+73,M5,Notifica e Disclosure Workflow,Sub-workflow B — Notifica Clienti B2B,Approvazione interna pre-invio comunicazione (1 o 2 livelli configurabili),Enterprise,Dubbio
+74,M5,Notifica e Disclosure Workflow,Sub-workflow B — Notifica Clienti B2B,Tracking invio + acknowledgment cliente (link di conferma lettura),Enterprise,Dubbio
+76,M5,Notifica e Disclosure Workflow,Patch Campaign Management,Creazione campagna di remediation su installed base,Enterprise,Enterprise
+77,M5,Notifica e Disclosure Workflow,Patch Campaign Management,Gestione finestre di intervento (maintenance windows) per clienti in siti produttivi,Enterprise,Dubbio
+78,M5,Notifica e Disclosure Workflow,Patch Campaign Management,"Gestione dipendenze campagna: release, cliente, disponibilità assistenza tecnica",Enterprise,Dubbio
+79,M5,Notifica e Disclosure Workflow,Patch Campaign Management,Tracciamento adozione patch per cliente/prodotto/versione,Enterprise,Enterprise
+81,M6,"Audit Trail, Alert e Compliance Evidence",Audit Trail,"Audit log immutabile, append-only, con timestamp",Must-have,Must-have
+82,M6,"Audit Trail, Alert e Compliance Evidence",Audit Trail,"Log include: chi, cosa, quando, su quale oggetto (granularità per campo)",Must-have,Must-have
+83,M6,"Audit Trail, Alert e Compliance Evidence",Audit Trail,"Export audit log per verifiche esterne (ACN, organismo notificato)",Must-have,Dubbio
+85,M6,"Audit Trail, Alert e Compliance Evidence",Sistema di Alert,Alert: nuove CVE che matchano componenti nelle SBOM,Must-have,Must-have
+86,M6,"Audit Trail, Alert e Compliance Evidence",Sistema di Alert,Alert: nuove entry nel CISA KEV che matchano prodotti commercializzati,Must-have,Must-have
+87,M6,"Audit Trail, Alert e Compliance Evidence",Sistema di Alert,Alert: variazioni di CVSS/severity su CVE già note,Must-have,Must-have
+88,M6,"Audit Trail, Alert e Compliance Evidence",Sistema di Alert,Alert: SLA triage in scadenza (timer 24h/72h prossimi alla scadenza),Must-have,Must-have
+89,M6,"Audit Trail, Alert e Compliance Evidence",Sistema di Alert,Alert: clienti critici non ancora notificati dopo X ore,Enterprise,Dubbio
+90,M6,"Audit Trail, Alert e Compliance Evidence",Sistema di Alert,Alert: patch non applicate su installazioni ad alto rischio dopo X giorni,Enterprise,Dubbio
+91,M6,"Audit Trail, Alert e Compliance Evidence",Sistema di Alert,Alert: vulnerabilità senza fix disponibile da fornitore del componente,Enterprise,Dubbio
+92,M6,"Audit Trail, Alert e Compliance Evidence",Sistema di Alert,Alert: componente con supporto scaduto (EoS) senza CVE associata,Enterprise,Dubbio
+93,M6,"Audit Trail, Alert e Compliance Evidence",Sistema di Alert,"Webhook verso sistemi ITSM/ticketing (Jira, ServiceNow, Azure DevOps)",Enterprise,Dubbio
+94,M6,"Audit Trail, Alert e Compliance Evidence",Sistema di Alert,Integrazione Teams/Slack per notifiche real-time al team operativo,Enterprise,Dubbio
+95,M6,"Audit Trail, Alert e Compliance Evidence",Sistema di Alert,Digest periodici per il management (settimanale/mensile via email),Enterprise,Dubbio
+96,M6,"Audit Trail, Alert e Compliance Evidence",Dashboard e KPI,"Compliance dashboard base: SLA compliance %, SBOM coverage %",Basic,Dubbio
+97,M6,"Audit Trail, Alert e Compliance Evidence",Dashboard e KPI,"KPI direzionali: prodotti esposti, vuln aperte per severità, MTTR, % clienti aggiornati, stato notifiche regolatorie",Enterprise,Dubbio
+98,M6,"Audit Trail, Alert e Compliance Evidence",Dashboard e KPI,Trend storico KPI (grafico nel tempo),Enterprise,Dubbio
+99,M6,"Audit Trail, Alert e Compliance Evidence",Dashboard e KPI,Report Allegato VII CRA (documentazione tecnica strutturata per valutazione conformità CE),Must-have,Must-have
+100,M6,"Audit Trail, Alert e Compliance Evidence",Dashboard e KPI,"Evidence pack per valutatori Classe I/II: SBOM versionata, log triage, proof of notification, CVD policy, test reports",Must-have,Must-have
+106,X — Won't Have,Out of Scope (Won't Have),Out of Scope,Distribuzione OTA (Over-the-Air) aggiornamenti firmware,Won't have,Won't have
+107,X — Won't Have,Out of Scope (Won't Have),Out of Scope,Architettura multi-tenant SaaS,Won't have,Won't have
+108,X — Won't Have,Out of Scope (Won't Have),Out of Scope,License compliance module (analisi licenze open source),Won't have,Won't have
+109,X — Won't Have,Out of Scope (Won't Have),Out of Scope,SAST/DAST integration nel ciclo di sviluppo,Won't have,Won't have
+110,X — Won't Have,Out of Scope (Won't Have),Out of Scope,Threat modeling tool integrato,Won't have,Won't have
+111,X — Won't Have,Out of Scope (Won't Have),Out of Scope,Supply chain risk scoring sui fornitori del fabbricante,Won't have,Won't have
+112,X — Won't Have,Out of Scope (Won't Have),Out of Scope,SLSA attestation (Supply chain Levels for Software Artifacts),Won't have,Won't have
+113,X — Won't Have,Out of Scope (Won't Have),Out of Scope,"Integrazione PLM (Teamcenter, Windchill)",Won't have,Won't have
+114,X — Won't Have,Out of Scope (Won't Have),Out of Scope,"Feed threat intelligence commerciali (Shodan, Recorded Future, ecc.)",Won't have,Won't have
+115,DT,Setup & Integrazione Dependency-Track,Deployment & Configurazione,"Setup e deployment Dependency-Track (Docker Compose, PostgreSQL, reverse proxy, configurazione base)",Basic,Basic
+116,DT,Setup & Integrazione Dependency-Track,Deployment & Configurazione,"Configurazione sorgenti vulnerability intelligence in DT (NVD API key, OSV, CISA KEV, EPSS, GitHub Advisory)",Basic,Basic
+117,DT,Setup & Integrazione Dependency-Track,API Integration Layer,"Sviluppo API client REST verso Dependency-Track (autenticazione JWT/API-key, gestione errori, retry, rate limiting)",Basic,Basic
+118,DT,Setup & Integrazione Dependency-Track,API Integration Layer,"Mapping e sincronizzazione progetti DT ↔ versioni prodotto proprietarie (import SBOM, allineamento IDs, stato sincronizzazione)",Must-have,Must-have
+119,DT,Setup & Integrazione Dependency-Track,Policy & Alerting,"Configurazione policy engine DT: regole per KEV match, CVSS critico, componenti EoL + webhook verso backend proprietario",Must-have,Must-have
+120,DT,Setup & Integrazione Dependency-Track,Test & Validazione,Test integrazione end-to-end: upload SBOM CycloneDX → matching CVE in DT → ricezione alert webhook → trigger workflow M4,Basic,Basic
+102,ADD-ON,Customer Portal B2B,Customer Portal B2B,Stato vulnerabilità per asset del cliente in tempo reale,Nice-to-have,Nice-to-have
+103,ADD-ON,Customer Portal B2B,Customer Portal B2B,Download SBOM dei prodotti in uso da parte del cliente,Nice-to-have,Nice-to-have
+104,ADD-ON,Customer Portal B2B,Customer Portal B2B,Ricezione e acknowledgment notifiche nel portale (alternativa/complemento all'email),Nice-to-have,Nice-to-have
+105,ADD-ON,Customer Portal B2B,Customer Portal B2B,Storico comunicazioni di sicurezza per cliente nel portale,Nice-to-have,Nice-to-have
+106,X — Won't Have,Out of Scope (Won't Have),Out of Scope,Distribuzione OTA (Over-the-Air) aggiornamenti firmware,Won't have,Won't have
+107,X — Won't Have,Out of Scope (Won't Have),Out of Scope,Architettura multi-tenant SaaS,Won't have,Won't have
+108,X — Won't Have,Out of Scope (Won't Have),Out of Scope,License compliance module (analisi licenze open source),Won't have,Won't have
+109,X — Won't Have,Out of Scope (Won't Have),Out of Scope,SAST/DAST integration nel ciclo di sviluppo,Won't have,Won't have
+110,X — Won't Have,Out of Scope (Won't Have),Out of Scope,Threat modeling tool integrato,Won't have,Won't have
+111,X — Won't Have,Out of Scope (Won't Have),Out of Scope,Supply chain risk scoring sui fornitori del fabbricante,Won't have,Won't have
+112,X — Won't Have,Out of Scope (Won't Have),Out of Scope,SLSA attestation (Supply chain Levels for Software Artifacts),Won't have,Won't have
+113,X — Won't Have,Out of Scope (Won't Have),Out of Scope,"Integrazione PLM (Teamcenter, Windchill)",Won't have,Won't have
+114,X — Won't Have,Out of Scope (Won't Have),Out of Scope,"Feed threat intelligence commerciali (Shodan, Recorded Future, ecc.)",Won't have,Won't have
+115,DT,Setup & Integrazione Dependency-Track,Deployment & Configurazione,"Setup e deployment Dependency-Track (Docker Compose, PostgreSQL, reverse proxy, configurazione base)",Basic,Basic
+116,DT,Setup & Integrazione Dependency-Track,Deployment & Configurazione,"Configurazione sorgenti vulnerability intelligence in DT (NVD API key, OSV, CISA KEV, EPSS, GitHub Advisory)",Basic,Basic
+117,DT,Setup & Integrazione Dependency-Track,API Integration Layer,"Sviluppo API client REST verso Dependency-Track (autenticazione JWT/API-key, gestione errori, retry, rate limiting)",Basic,Basic
+118,DT,Setup & Integrazione Dependency-Track,API Integration Layer,"Mapping e sincronizzazione progetti DT ↔ versioni prodotto proprietarie (import SBOM, allineamento IDs, stato sincronizzazione)",Must-have,Must-have
+119,DT,Setup & Integrazione Dependency-Track,Policy & Alerting,"Configurazione policy engine DT: regole per KEV match, CVSS critico, componenti EoL + webhook verso backend proprietario",Must-have,Must-have
+120,DT,Setup & Integrazione Dependency-Track,Test & Validazione,Test integrazione end-to-end: upload SBOM CycloneDX → matching CVE in DT → ricezione alert webhook → trigger workflow M4,Basic,Basic
